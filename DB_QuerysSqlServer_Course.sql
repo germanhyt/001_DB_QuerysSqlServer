@@ -140,6 +140,14 @@ GROUP BY Orders.EmployeeID
 HAVING count(Orders.OrderID)>50
 go
 
+/*** Orden *******/
+-- SELECT 
+-- FROM
+-- WHERE
+-- GROUP BY
+-- HAVING
+-- ORDER BY
+/**************/
 SELECT 
     Orders.CustomerID AS 'ID Cliente',
     COUNT(Orders.OrderID) AS 'Cantidad de órdenes'
@@ -166,7 +174,7 @@ CASE
 	ELSE 'Ventas Altas'
 END AS 'Categoria Ventas'
 FROM [Order Details];
-
+GO
 
 
 /**************/
@@ -191,7 +199,7 @@ END AS 'Categoria Costo'
 FROM Products AS PR
 INNER JOIN [Order Details] AS OD
 ON PR.ProductID=OD.ProductID;
-
+GO
 
 SELECT 
     P.ProductID AS 'ID producto',
@@ -202,12 +210,120 @@ SELECT
 FROM Products AS P
 INNER JOIN Categories AS C 
 ON P.CategoryID=C.CategoryID
+GO
 
-
+-- INNER JOIN - Intersección
 SELECT 
     CustomerID AS 'ID Cliente',
     CompanyName AS 'Nombre compañía',
     ContactName AS 'Nombre'
 FROM Customers WHERE Customers.Country IS NOT NULL;
+GO
 
+-- LEFT JOIN - Conjunto de datos propios de la 1ra tabla 
+SELECT
+	O.OrderID AS 'ID orden',
+	O.OrderDate AS 'Fecha de Orden',
+	C.CustomerID AS 'ID cliente', 
+	c.CompanyName AS 'Compañía de Cliente',
+	c.Country AS 'Procedencia de Cliente'
+FROM Orders as O
+LEFT JOIN Customers AS C 
+ON O.CustomerID=C.CustomerID;
+GO
+
+-- LEFT JOIN - Conjunto de datos propios de la 2da tabla intersectada
+SELECT
+	O.OrderID AS 'ID orden',
+	O.OrderDate AS 'Fecha de Orden',
+	C.CustomerID AS 'ID cliente', 
+	c.CompanyName AS 'Compañía de Cliente',
+	c.Country AS 'Procedencia de Cliente'
+FROM Orders as O
+RIGHT JOIN Customers AS C 
+ON O.CustomerID=C.CustomerID;
+GO
+
+-- FULL JOIN - Conjunto de datos propios de ambas tablas más la intersección
+SELECT
+	O.OrderID AS 'ID orden',
+	O.OrderDate AS 'Fecha de Orden',
+	C.CustomerID AS 'ID cliente', 
+	c.CompanyName AS 'Compañía de Cliente',
+	c.Country AS 'Procedencia de Cliente'
+FROM Orders as O
+FULL JOIN Customers AS C 
+ON O.CustomerID=C.CustomerID;
+GO
+
+-- SELF JOIN - Conjunto de datos de la misma tabla, se usa inner join
+SELECT * FROM Employees;
+SELECT 
+	X.EmployeeID,
+	CONCAT(X.LastName,' ', X.FirstName,' - ', X.Title) AS 'Jefe',
+	Y.LastName+' '+Y.FirstName+' - '+ Y.Title AS 'Empleado'
+FROM Employees AS X
+INNER JOIN Employees AS Y
+ON X.EmployeeID=Y.EmployeeID
+ORDER BY 1;
+GO
+
+
+/********************************/
+-- DAY 3
+/********************************/
+
+/**************/
+ -- Funciones de Agregación
+ -- COUNT - Nos permite contabilizar filas sin contabilizar los nulls 
+ -- SUM - Suma de números
+ -- AVG - Promedio de números
+ -- MIN y MAX - Número mín y máx de un conjunto de números
+/**************/
+SELECT COUNT(*) AS 'Cantidad de Clientes' FROM Customers;
+GO
+SELECT COUNT(CustomerID) AS 'Cantidad de Clientes'  FROM Customers;
+GO
+SELECT COUNT(Region) AS 'Cantidad de Clientes con región'  FROM Customers;
+GO
+SELECT COUNT(DISTINCT City) AS 'Cantidad de ciudades únicas de la tabla Clientes'  FROM Customers;
+GO
+SELECT COUNT(DISTINCT Region) AS 'Cantidad de paises únicos de la tabla Clientes'  FROM Customers;
+GO
+
+SELECT SUM(quantity) AS 'Cantidad de productos en total' FROM [Order Details];
+GO
+SELECT SUM(UnitPrice) AS 'Costo total de productos' FROM [Order Details];
+GO
+
+SELECT AVG(quantity) AS 'Promedio de cantidad de productos'  FROM [Order Details];
+GO
+SELECT AVG(UnitPrice*Quantity) AS 'Promedio de ventas de pedidos'  FROM [Order Details];
+GO
+
+SELECT MIN(quantity) AS 'Mínimo de cantidad de productos'  FROM [Order Details];
+GO
+SELECT MAX(UnitPrice*Quantity) AS 'Máximo de ventas de pedidos'  FROM [Order Details];
+GO
+
+
+/**************/
+-- 1) Determinar El total de ventas, ordenado por su correlativo en la tabla orderDetails).
+/**************/
+SELECT 
+	OrderID,
+	SUM(Quantity*UnitPrice-Discount) AS 'Total de ventas'
+FROM [Order Details]
+GROUP BY OrderID
+ORDER BY OrderID DESC;
+
+/**************/
+-- 1) El numero (conteo) de ordenes mayores a 100, con su correlativo de la tabla orders
+/**************/
+SELECT 
+	Orders.EmployeeID AS 'ID Empleado',
+	COUNT(*) AS 'Cantidad de pedidos mayores a 100 por empleado'
+FROM Orders
+GROUP BY Orders.EmployeeID
+HAVING COUNT(OrderID)>100;
 
