@@ -215,10 +215,10 @@ SELECT
 	OD.Quantity AS 'Cantidad',
 	OD.UnitPrice*OD.Quantity AS 'Costo total',
 	CASE 
-	WHEN OD.UnitPrice*OD.Quantity>500
-	THEN 'Costo alto'
-	ELSE 'Costo Bajo'
-END AS 'Categoria Costo'
+		WHEN OD.UnitPrice*OD.Quantity>500
+		THEN 'Costo alto'
+		ELSE 'Costo Bajo'
+	END AS 'Categoria Costo'
 FROM Products AS PR
 	INNER JOIN [Order Details] AS OD
 	ON PR.ProductID=OD.ProductID;
@@ -382,13 +382,10 @@ FROM Employees
 WHERE Region IS NULL;
 GO
 
-/********************************/
--- DAY 4
-/********************************/
 
-/**************/
--- 1ra práctica de los temas anteriores
-/**************/
+/********************************/
+-- DAY 4 (1ra práctica de los temas anteriores)
+/********************************/
 
 /**************/
 -- 1) Crea 2 consultas; 1 que funcione y 1 que no funcione POR ORDEN LÓGICO, Solo hasta el GROUP BY  Usando TSQL 
@@ -400,7 +397,7 @@ GROUP BY CategoryID
 GO
 
 /**************/
--- 2) Se necesita tener una lista de códigos de productos mayores iguales a 60 y menores iguales  a 70 (USA TSQL – Production.Products)
+-- 2) Se necesita tener una lista de códigos de productos mayores iguales a 60 y menores iguales  a 70 (USA TSQL – Tabla Products)
 /**************/
 SELECT ProductID AS 'Id-producto'
 FROM Products
@@ -408,7 +405,7 @@ WHERE ProductID BETWEEN 60 AND 70
 GO
 
 /**************/
--- 3) Se necesita categorizar las ventas por la siguiente regla (USA TSQL; Sales.OrdersDetails): 
+-- 3) Se necesita categorizar las ventas por la siguiente regla (USA TSQL, Tabla OrdersDetails): 
 -- • Ventas Totales Mayores iguales a 500 – “ALTAS” 
 -- • Ventas Totales Menores a 500 – “BAJAS” 
 /**************/
@@ -425,10 +422,10 @@ FROM [Order Details]
 GO
 
 /**************/
--- 4) Se necesita tener (USE TSQL Sales.Orders, Sales.OrdersDetails, Sales.Customers y  Production.Products): 
+-- 4) Se necesita tener (USE Tables Orders,.OrdersDetails,.Customers y Products): 
 -- • Una lista únicamente con las ventas realizadas por los siguientes campos: IdCliente,  NombreCliente, OrderID, NombreProducto, Venta 
 -- NOTA: Solo mostrar ventas de clientes con código cuyo patrón de palabras comience con 'V' y ventas totales mayores iguales a 1000 
--- BONUS: Puedes agregar a la consulta información de la tabla Production.Categories y  Production.Supplier
+-- BONUS: Puedes agregar a la consulta información de la tabla Categories y  Supplier
 /**************/
 SELECT
 	O.CustomerID AS 'Id-cliente',
@@ -447,10 +444,112 @@ WHERE CU.CustomerID LIKE 'V%' AND OD.UnitPrice*OD.Quantity>=1000
 GO
 
 /**************/
--- 5) Necesitamos una lista de personas que no tengan registros nulos en el campo región de la  Tabla HR.Employees 
+-- 5) Necesitamos una lista de personas que no tengan registros nulos en el campo región de la Tabla Employees 
 /**************/
 SELECT CONCAT(FirstName,LastName) AS 'Nombre de Emoleado'
 FROM Employees
 WHERE Region IS NOT NULL
 GO
 
+
+
+/********************************/
+-- DAY 5
+/********************************/
+
+/**************/
+-- USE OF 'CASE'
+/**************/
+
+-- En una tabla definir el campo categoria y tener en cuenta lo siguiente usando el concepto CASE*:
+-- • se necesita que los precios menores iguales a 8 contengan la palabra "Precio Bajo"
+-- • precios mayores a 8 y menores iguales a 15 la palabra "Precio Medio"
+-- • precios mayores a 15 y menores iguales a 45 la palabra "Medio Alto"
+-- • precio mayores a 45 la palabra "Alto"
+-- • en caso no tenga precio, la palabra "No tiene Precio"
+SELECT
+	ProductID AS 'ID producto',
+	ProductName AS 'Nombre producto',
+	UnitPrice AS 'Precio Unitario',
+	CASE 
+		WHEN UnitPrice<=8 
+		 THEN 'Precio Bajo'
+		WHEN UnitPrice>8 AND UnitPrice<=15 
+ 		 THEN 'Precio Medio' 
+		WHEN UnitPrice>15 AND UnitPrice<=45 
+ 		 THEN 'Precio Medio Alto' 
+		WHEN UnitPrice>=45 
+ 		 THEN 'Precio Alto' 
+		ELSE 'No tiene Precio'  
+	END AS Categoria
+FROM Products
+ORDER BY UnitPrice ASC
+GO
+
+/**************/
+-- USE OF 'Subconsultas'
+/**************/
+
+/*******/
+-- CORRELACIONADAS: A diferencia de una subconsulta normal, que se ejecuta una sola vez y devuelve un resultado, una subconsulta correlacionada se ejecuta múltiples veces, una vez por cada fila que está siendo evaluada en la consulta externa. Una subconsulta correlacional es aquella que está vinculada a la consulta externa. Se ejecuta una vez para cada fila seleccionada por la consulta externa. Se usa operadores Lógicos
+/*******/
+
+-- Hallar el pedido más reciente para cada cliente en la tabla Orders
+SELECT CustomerID, OrderID, OrderDate 
+FROM Orders AS OUTORDERS
+WHERE OrderDate=(
+	SELECT MAX(OrderDate)
+	FROM Orders AS INERORDERS
+	WHERE OUTORDERS.CustomerID=INERORDERS.CustomerID
+)
+ORDER BY CustomerID
+GO
+
+/*******/
+-- ESCALAR: Una subconsulta escalar devuelve un único valor. Este tipo de subconsulta se puede utilizar en varias partes de la consulta principal, como el SELECT, WHERE o HAVING. Se usa Operadores Lógicos
+/*******/
+
+-- Se desea obtener el nro de orden, el número de producto, el precio unitario y la cantidad de la última orden generada
+SELECT OrderID, ProductID,UnitPrice,Quantity
+FROM [Order Details]
+WHERE OrderID=(  --obtener la variable (que siempre cambia con el tiempo) de la última orden generada
+	SELECT MAX(OrderID) AS 'Última Orden'
+	FROM Orders
+)
+GO
+
+
+/*******/
+-- MÚLTIPLES VALORES: Este devuelve más de una columna o más de una fila, pero no una tabla completa. Se utilizan con operadores que pueden manejar múltiples valores como IN o con funciones que toman conjuntos de valores como argumento.
+/*******/
+
+-- Utilizar una subconsulta de múltiples valores para filtrar los resultados de la tabla Orders basados en cierta condición aplicada a la tabla Customers
+SELECT CustomerID, OrderID
+FROM Orders
+WHERE CustomerID IN (
+	SELECT CustomerID
+	FROM Customers
+	WHERE Customers.Country='Mexico'
+)
+GO
+
+
+/*******/
+-- Ejercicios
+/*******/
+
+-- Se requiere devolver los registro la tabla OrderDetails cuyo precio unitario sea mayor que todos los precios unitarios de los productos con el nombre 'Chocolade' en la tabla products. Luego ordenarios por la 3ra columna (precio unitario)
+SELECT 
+	OD.OrderID AS 'ID Orden',
+	OD.ProductID AS 'ID Product',
+	OD.UnitPrice AS 'Precio Unitario'
+ FROM [Order Details] AS OD
+ WHERE OD.UnitPrice > ALL(  -- Sólo incluirá filas cuyo unitprice sea mayor que todos los precios unitarios que se obtuvieron de la subconsulta.
+	SELECT DISTINCT OD2.UnitPrice
+	FROM [Order Details] AS OD2
+	INNER JOIN Products AS P2
+	ON OD2.ProductID=P2.ProductID
+	WHERE P2.ProductName='Chocolade'
+)
+ORDER BY 3 ASC
+GO
