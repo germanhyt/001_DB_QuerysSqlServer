@@ -6,12 +6,25 @@
 
 /**************/
 -- TIPOS DE LENGUAJE SEGÚN SU FUNCIÓN:
--- DML:
---- SELECT, INSERT, UPDATE, DELETE
--- DDL:
+-- DDL (Data Definition Lenguage | Lenguaje de Definición de datos):
 --- CREATE, ALTER, DROP
--- DCL:
+-- DML (Data Manipulation Lenguage | Lenguaje de Manipulación de datos):
+--- SELECT, INSERT, UPDATE, DELETE
+-- DCL (Data Control Lenguage | Lenguaje de Control de datos):
 --- GRANT, REVOKE, DENY
+-- DQL (Data Query Lenguage | Lenguaje de Consulta de Datos)
+--- SELECT
+--- FROM + JOINS (INNER, LEFT, RIGHT, FULL OUTER, CROSS)
+--- WHERE
+--- GROUP BY
+--- HAVING + "Filter inside grouping"
+--- ORDER BY + ASC/DESC
+--- LIMIT
+-- TCL (Transaction Control Lenguage | Lenguje de Control Transaccional)
+--- COMMIT
+--- ROLLBACK
+--- SAVEPOINT
+--- SET TRANSACTION
 /**************/
 
 
@@ -30,6 +43,7 @@ FROM Customers
 WHERE city='London';
 GO
 
+DROP TABLE IF EXISTS MiprimeraTabla;
 CREATE TABLE MiprimeraTabla
 (
 	IdPersona int identity (1,1) primary key,
@@ -193,7 +207,7 @@ SELECT orderid AS 'ID orden',
 	Quantity AS 'Cantidad',
 	unitprice*Quantity AS 'Total venta',
 	CASE
-	WHEN unitprice*Quantity<500 THEN 'Ventas Bajas'
+		WHEN unitprice*Quantity<500 THEN 'Ventas Bajas'
 	ELSE 'Ventas Altas'
 END AS 'Categoria Ventas'
 FROM [Order Details];
@@ -256,7 +270,7 @@ FROM Orders as O
 	ON O.CustomerID=C.CustomerID;
 GO
 
--- LEFT JOIN - Conjunto de datos propios de la 2da tabla intersectada
+-- RIGHT JOIN - Conjunto de datos propios de la 2da tabla intersectada
 SELECT
 	O.OrderID AS 'ID orden',
 	O.OrderDate AS 'Fecha de Orden',
@@ -495,13 +509,13 @@ GO
 /*******/
 
 -- Hallar el pedido más reciente para cada cliente en la tabla Orders
-SELECT CustomerID, OrderID, OrderDate 
+SELECT CustomerID, OrderID, OrderDate
 FROM Orders AS OUTORDERS
 WHERE OrderDate=(
 	SELECT MAX(OrderDate)
-	FROM Orders AS INERORDERS
-	WHERE OUTORDERS.CustomerID=INERORDERS.CustomerID
-)
+FROM Orders AS INERORDERS
+WHERE OUTORDERS.CustomerID=INERORDERS.CustomerID
+	)
 ORDER BY CustomerID
 GO
 
@@ -510,12 +524,12 @@ GO
 /*******/
 
 -- Se desea obtener el nro de orden, el número de producto, el precio unitario y la cantidad de la última orden generada
-SELECT OrderID, ProductID,UnitPrice,Quantity
+SELECT OrderID, ProductID, UnitPrice, Quantity
 FROM [Order Details]
 WHERE OrderID=(  --obtener la variable (que siempre cambia con el tiempo) de la última orden generada
 	SELECT MAX(OrderID) AS 'Última Orden'
-	FROM Orders
-)
+FROM Orders
+	)
 GO
 
 
@@ -528,8 +542,8 @@ SELECT CustomerID, OrderID
 FROM Orders
 WHERE CustomerID IN (
 	SELECT CustomerID
-	FROM Customers
-	WHERE Customers.Country='Mexico'
+FROM Customers
+WHERE Customers.Country='Mexico'
 )
 GO
 
@@ -539,17 +553,223 @@ GO
 /*******/
 
 -- Se requiere devolver los registro la tabla OrderDetails cuyo precio unitario sea mayor que todos los precios unitarios de los productos con el nombre 'Chocolade' en la tabla products. Luego ordenarios por la 3ra columna (precio unitario)
-SELECT 
+SELECT
 	OD.OrderID AS 'ID Orden',
 	OD.ProductID AS 'ID Product',
 	OD.UnitPrice AS 'Precio Unitario'
- FROM [Order Details] AS OD
- WHERE OD.UnitPrice > ALL(  -- Sólo incluirá filas cuyo unitprice sea mayor que todos los precios unitarios que se obtuvieron de la subconsulta.
+FROM [Order Details] AS OD
+WHERE OD.UnitPrice > ALL(  -- Sólo incluirá filas cuyo unitprice sea mayor que todos los precios unitarios que se obtuvieron de la subconsulta.
 	SELECT DISTINCT OD2.UnitPrice
-	FROM [Order Details] AS OD2
+FROM [Order Details] AS OD2
 	INNER JOIN Products AS P2
 	ON OD2.ProductID=P2.ProductID
-	WHERE P2.ProductName='Chocolade'
+WHERE P2.ProductName='Chocolade'
 )
 ORDER BY 3 ASC
 GO
+
+
+
+/**************/
+-- USE OF Set Operators
+/**************/
+
+-- UNION  // Une pero Elimina los duplicado
+	SELECT City, Country, Region
+	FROM Employees
+UNION
+	SELECT City, Country, Region
+	FROM Customers
+ORDER BY 1
+GO
+
+-- UNION ALL  // Une pero No Elimina los duplicados
+	SELECT City, Country, Region
+	FROM Employees
+UNION ALL
+	SELECT City, Country, Region
+	FROM Customers
+ORDER BY 1
+GO
+
+-- INTERSECT
+	SELECT City, Country, Region
+	FROM Employees
+INTERSECT
+	SELECT City, Country, Region
+	FROM Customers
+ORDER BY 1
+GO
+
+-- EXPCEPT
+	SELECT City, Country, Region
+	FROM Employees
+EXCEPT
+	SELECT City, Country, Region
+	FROM Customers
+ORDER BY 1
+GO
+
+
+/**************/
+-- USE OF Vistas: Una vista es una tabla virtual que se compone de datos de una o más tablas reales en la base de datos. Las vistas permiten simplificar consultas complejas al predefinir cómo se deben unir y seleccionar los datos. Son útiles para presentar datos de manera organizada y restringir el acceso a ciertas columnas o filas. Las vistas no almacenan datos físicamente, sino que muestran los resultados de una consulta en tiempo real.
+/**************/
+
+-- CREAMOS LA VISTA
+CREATE VIEW vw_primeravista
+AS
+	SELECT
+		c.CustomerID as idCliente,
+		c.ContactName as Cliente,
+		o.OrderID as OrderId,
+		p.ProductName as Producto,
+		(odt.UnitPrice * odt.Quantity) as VentaTotal
+	FROM DBO.Orders AS o
+		INNER JOIN DBO.[Order Details] AS odt ON o.OrderID=odt.OrderID
+		INNER JOIN DBO.Customers AS c ON o.CustomerID=c.CustomerID
+		INNER JOIN DBO.Products AS p ON odt.ProductID= p.ProductID
+GO
+
+SELECT *
+FROM vw_primeravista;
+GO
+
+
+-- MODIFICAMOS LA VISTA
+ALTER VIEW vw_primeravista
+AS
+	SELECT
+		c.CustomerID as id,
+		c.ContactName as Cliente,
+		o.OrderID as OrderId,
+		p.ProductName as Producto,
+		(odt.UnitPrice * odt.Quantity) as VentaTotal
+	FROM DBO.Orders AS o
+		INNER JOIN DBO.[Order Details] AS odt ON o.OrderID=odt.OrderID
+		INNER JOIN DBO.Products AS p ON odt.ProductID= p.ProductID
+		INNER JOIN DBO.Customers AS c ON o.CustomerID=c.CustomerID
+GO
+SELECT *
+FROM vw_primeravista;
+GO
+
+-- ELIMINAMOS LA VISTA
+-- DROP VIEW vw_primeravista;
+
+
+
+/**************/
+-- USE OF Functions: Una función es un bloque de código SQL que realiza una tarea específica y devuelve un valor o un conjunto de valores. Pueden ser funciones escalares que devuelven un solo valor o funciones tabulares que devuelven un conjunto de filas como resultado. Las funciones pueden aceptar parámetros y realizar operaciones complejas antes de devolver un resultado. Son útiles para reutilizar lógica en consultas, automatizar tareas y encapsular operaciones complejas.
+/**************/
+
+-- CREAR FUNCIONES
+CREATE FUNCTION fn_primerafuncion (@orderid int)
+RETURNS TABLE
+AS 
+	RETURN 
+		SELECT
+	c.CustomerID as idCliente,
+	c.ContactName as Cliente,
+	o.OrderID as OrderId,
+	p.ProductName as Producto,
+	(odt.UnitPrice * odt.Quantity) as VentaTotal
+FROM DBO.Orders AS o
+	INNER JOIN DBO.[Order Details] AS odt ON o.OrderID=odt.OrderID
+	INNER JOIN DBO.Customers AS c ON o.CustomerID=c.CustomerID
+	INNER JOIN DBO.Products AS p ON odt.ProductID= p.ProductID
+where o.OrderID = @orderid
+GO
+
+-- SELECT *
+-- FROM fn_primerafuncion(10248)
+-- GO
+
+-- MODIFICACIONES
+ALTER FUNCTION fn_primerafuncion (@orderid int)
+RETURNS TABLE
+AS 
+	RETURN 
+		SELECT
+	c.CustomerID as id,
+	c.ContactName as Cliente,
+	o.OrderID as OrderId,
+	p.ProductName as Producto,
+	(odt.UnitPrice * odt.Quantity) as VentaTotal
+FROM DBO.Orders AS o
+	INNER JOIN DBO.[Order Details] AS odt ON o.OrderID=odt.OrderID
+	INNER JOIN DBO.Customers AS c ON o.CustomerID=c.CustomerID
+	INNER JOIN DBO.Products AS p ON odt.ProductID= p.ProductID
+where o.OrderID = @orderid
+GO
+
+-- SELECT *
+-- FROM fn_primerafuncion(10248)
+-- GO
+
+/*El area de desarrollo necesita una function para consultas las ventas a 
+traves del parametro: nombre del pais, crear lo solicitado que ayude a este
+requerimiento. Usar las tablas ORDERS y CUSTOMERS asi mismo la funcion debe
+devolver el ORDERID, ORDERDATE, CUSTID, CONTACTNAME*/
+CREATE FUNCTION fn_consultaventas2(@pais VARCHAR(50))
+RETURNS TABLE
+AS 
+	RETURN
+	SELECT
+	O.OrderID AS IdOrden,
+	O.OrderDate AS FechaOrden,
+	C.CustomerID AS IdCliente,
+	C.ContactName AS Nombre,
+	(odt.UnitPrice*odt.Quantity) as VentaTotal
+FROM Orders AS O
+	INNER JOIN Customers AS C ON O.CustomerID=C.CustomerID
+	inner join [Order Details] AS ODT ON O.OrderID= ODT.OrderID
+WHERE C.Country= @pais
+GO
+
+SELECT *
+FROM fn_consultaventas2('Mexico');
+GO
+
+
+/**************/
+-- USE OF Store Procedure(SP):  crea y ejecuta, en temas de performance el sp es mejor
+/**************/
+
+--CREAMOS
+create procedure sp_store_procedure(@fech_ini date,
+	@fech_fin date)
+as
+begin
+	select *
+	from dbo.Customers c
+		inner join dbo.orders o on o.CustomerID=c.CustomerID
+		inner join dbo.[Order Details] d on d.orderid=o.orderid
+		inner join dbo.Products p on p.productid=d.productid
+	where o.orderdate between @fech_fin and @fech_fin
+end
+go
+-- select * from Orders;
+-- exec sp_store_procedure @fech_ini='1996-07-04 00:00:00.000',@fech_fin='1997-08-27 00:00:00.000'
+-- go
+
+--MODIFICAMOS
+alter procedure sp_store_procedure
+as
+	begin
+	declare @custid VARCHAR(50)
+	set @custid='HILAA'
+	select c.CustomerID, c.companyname, o.orderdate, d.Quantity, d.unitprice, p.ProductName, (d.Quantity*d.unitprice) as total
+	from dbo.Customers c
+		inner join dbo.orders o on o.CustomerID=c.CustomerID
+		inner join dbo.[Order Details] d on d.orderid=o.orderid
+		inner join dbo.Products p on p.productid=d.productid
+	where c.CustomerID=@custid
+end
+go
+exec sp_store_procedure
+go
+
+--BORRAMOS
+drop procedure sp_store_procedure
+
+
