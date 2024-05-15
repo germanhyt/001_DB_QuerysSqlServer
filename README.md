@@ -20,7 +20,7 @@ En este proyecto, realizaremos ejercicios pequeños que servirán para armar un 
 - T-SQL
 
 ## Despliegue
-
 - No
 
+## Road Map
 ![Tecnologías](assets/roadmap-sql.webp)

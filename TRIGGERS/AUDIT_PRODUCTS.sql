@@ -38,9 +38,9 @@ BEGIN
 
 END;
 
+
 -- ALTER TABLE Products ENABLE TRIGGER tr_productTablesAudit;
 -- DROP TRIGGER Products_Audit;
-
 
 -- permissions trigger Products_Audit
 GRANT ALTER ON Products_Audit TO public;

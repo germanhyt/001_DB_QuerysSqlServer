@@ -7,7 +7,8 @@
 /**************/
 -- TIPOS DE LENGUAJE SEGÚN SU FUNCIÓN:
 -- DDL (Data Definition Lenguage | Lenguaje de Definición de datos):
---- CREATE, ALTER, DROP
+--- CREATE, ALTER, DROP 
+
 -- DML (Data Manipulation Lenguage | Lenguaje de Manipulación de datos):
 --- SELECT, INSERT, UPDATE, DELETE
 -- DCL (Data Control Lenguage | Lenguaje de Control de datos):
@@ -775,4 +776,107 @@ drop procedure sp_store_procedure
 
 
 
+/**************/
+-- USE OF TRANSACTIONS
+/**************/
+-- COMMIT:  confirma las operaciones realizadas, finaliza la Transación y guarda el resultado en la base de datos
+-- ROLLBACK: Deshace las operaciones de una transacción desde el último COMMIT, detecta un error y permite que la base de datos reqgrese a su estado previo a la transacción, evitando incosistencias o pérdidas de datos
 
+-- TRANSACTION BÁSICA
+SELECT * FROM Products WHERE CategoryID=2;
+BEGIN TRANSACTION
+BEGIN TRY
+	UPDATE dbo.Products
+	SET UnitPrice = UnitPrice*1.10
+	WHERE CategoryID= 2
+	
+	COMMIT TRANSACTION   
+	PRINT 'Transacción confirmada con éxito'
+END TRY
+BEGIN CATCH
+	ROLLBACK TRANSACTION
+	PRINT 'Error detectado, transacción revertida'
+END CATCH
+
+-- GESTIÓN DE NIVELES DE AISLAMIENTO
+-- Ejecuta dos transacciones concurrentes que intenten leer y modificar los mismos datos con diferentes niveles de aislamiento.
+---- TRANSACTION 1
+SELECT * FROM Orders WHERE CustomerID = 'VINET';
+SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED
+BEGIN TRANSACTION
+SELECT * FROM Orders WHERE CustomerID='VINET'
+WAITFOR DELAY '00:00:10'
+UPDATE Orders SET Freight= Freight+10 WHERE CustomerID= 'VINET'
+COMMIT TRANSACTION
+---- TRANSACTION 2
+SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED
+BEGIN TRANSACTION
+SELECT * FROM Orders WHERE CustomerID = 'VINET'
+WAITFOR DELAY '00:00:05'
+UPDATE Orders SET Freight=Freight+5 WHERE CustomerID='VINET'
+COMMIT TRANSACTION
+-- RESULTADOS: 
+-- COMO SON TRANSACCIONES CONCURRENTES Y QUE APUNTAN A LO MISMO EN BASE DE DATOS, SE USA UNA TRANSACCIÓN QUE GRACIAS A SU PROPIEDAD DE AISLAMIENTO MANEJA A LAS OPERACIONES COMO SECUENCIAL
+-- SE OBSERVA TAMBIÉN QUE LOS RESULTADOS SE MUESTRAN CUANDO LA TRANSACCIÓN CON MAYOR TIEMPO TERMINA 
+-- Si las operaciones dentro del bloque "BEGIN TRY" se completan correctamente, la transacción se confirma con éxito, actualizando el precio de los productos de la categoría especificada y emitiendo el mensaje "Transacción confirmada con éxito".
+-- Si ocurre un error durante la ejecución de las operaciones (por ejemplo, si la categoría no existe o hay un problema de conexión), el bloque "BEGIN CATCH" se ejecuta, la transacción se revierte completamente a su estado original, y se muestra el mensaje "Error detectado, transacción revertida".
+
+
+
+-- USE OF SAVEPOINTS
+-- Realiza varias actualizaciones dentro de una transacción con savepoints. Luego Simula un error y revierte a un savepoint específico.
+SELECT * FROM Orders;
+SELECT * FROM Employees;
+BEGIN TRANSACTION
+BEGIN TRY
+    UPDATE Products
+    SET UnitPrice = UnitPrice * 1.08
+    WHERE CategoryID = 2
+    SAVE TRANSACTION Savepoint1
+
+    UPDATE Employees
+    SET Title = 'Developer'
+    WHERE EmployeeID = 1
+    SAVE TRANSACTION Savepoint2
+
+    -- Simular un error
+    -- UPDATE Orders SET EmployeeID = '123' WHERE OrderID = 10248  
+
+    COMMIT TRANSACTION
+	PRINT 'Transacción confirmada y ejecutada'
+
+END TRY
+BEGIN CATCH
+    PRINT 'Error detectado, se requiere reversión'
+    ROLLBACK TRANSACTION Savepoint2
+    PRINT 'Revertido al Savepoint2, operaciones después de Savepoint2 desechadas'
+END CATCH
+-- RESULTADOS:
+-- La ejecución pasa al bloque BEGIN CATCH, donde se imprime "Error detectado, se requiere reversión" y se revierte la transacción al punto Savepoint2. Las actualizaciones realizadas después de Savepoint2 se desechan, mientras que las operaciones antes de Savepoint2 permanecen.
+-- Resultado final: Solo las actualizaciones realizadas antes de Savepoint2 se mantienen en la base de datos.
+
+
+-- IMPLEMENTACIÓN DE LOCKS EXPLÍCITOS
+-- Usa SELECT con la cláusula WITH (HOLDLOCK, ROWLOCK) para implementar locks y Actualiza las filas bloqueadas.
+---- Transacción 1 
+BEGIN TRANSACTION
+SELECT * FROM Products WITH (HOLDLOCK, ROWLOCK) WHERE ProductID = 5
+WAITFOR DELAY '00:00:10'  -- Simula espera
+COMMIT TRANSACTION
+---- Transacción 2
+BEGIN TRANSACTION
+UPDATE Products SET UnitsInStock = UnitsInStock - 10 WHERE ProductID = 5
+COMMIT TRANSACTION
+-- RESULTADOS:
+-- Transacción 1: Bloquea la fila con ProductID = 5 y mantiene el lock durante 10 segundos debido al WAITFOR DELAY.
+-- Transacción 2: Intenta actualizar la misma fila con ProductID = 5. Si se ejecuta al mismo tiempo que la transacción 1, se queda en espera hasta que se libere el bloqueo de la fila.
+-- Después de 10 segundos, transacción 1 se completa y libera el lock, permitiendo a la transacción 2 realizar su actualización.
+-- Este ejemplo muestra cómo los locks explícitos controlan el acceso concurrente y previenen cambios conflictivos.
+
+
+
+-- RESULTADOS
+-- Transacción 1: Bloquea el ProductID = 1 y espera 5 segundos antes de intentar actualizar CustomerID = 'ALFKI', creando un lock en el producto.
+-- Transacción 2: Bloquea CustomerID = 'ALFKI' y espera 5 segundos antes de intentar actualizar ProductID = 1, creando un lock en el cliente.
+-- Este escenario produce un deadlock porque cada transacción está esperando recursos bloqueados por la otra, llevando a un callejón sin salida.
+-- SQL Server detectará el deadlock y forzará la cancelación de una de las transacciones para resolver el conflicto, generando un mensaje de error que se puede manejar para reiniciar o ajustar la operación de la transacción afectada.
